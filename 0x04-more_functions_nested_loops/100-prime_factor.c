@@ -1,47 +1,22 @@
-#include "main.h"
+#include <stdio.h>
 
 /**
- * print_number - Function that prints an integer.
- * @n: int type number
- * Description: Can only use _putchar to print.
+ * main - prints the highest prime factor of 612852475143
+ *
+ * Return: 0 if successful
  */
-void print_number(int n)
+int main(void)
 {
-	long m; /* power of 10 */
-	int c; /* boolean check */
-	long num; /* convert int to long */
+	unsigned long int prime = 612852475143;
+	unsigned long int i = 3;
 
-	num = n;
-	/* negatives */
-	if (num < 0)
-	{
-		num *= -1;
-		_putchar('-');
-	}
-
-	/* count up */
-	m = 1;
-	c = 1;
-	while (c)
-	{
-		if (num / (m * 10) > 0)
-			m *= 10;
+	while (i <= prime / 2)
+		if (prime % i == 0)
+			prime = prime / i;
 		else
-			c = 0;
-	}
+			i += 2;
 
-	/* count down */
-	while (num >= 0)
-	{
-		if (m == 1)
-		{
-			_putchar(num % 10 + '0');
-			num = -1;
-		}
-		else
-		{
-			_putchar((num / m % 10) + '0');
-			m /= 10;
-		}
-	}
+	printf("%ld\n", prime);
+
+	return (0);
 }
