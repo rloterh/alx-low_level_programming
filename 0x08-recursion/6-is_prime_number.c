@@ -1,51 +1,31 @@
 #include "main.h"
-
+int counter(int count, int n);
 /**
- * is_prime_number - determine if a number is a prime number
- * @n: int number
- * Return: 1 if prime, 0 otherwise
+ * is_prime_number - function with one argument
+ * @n: int type argument
+ *
+ * Description: find prime number
+ * Return: call to counter fuction with arguments
  */
-
 int is_prime_number(int n)
 {
-	if (n < 2)
-		return (0);
-	if (n < 4)
-		return (1);
-	return (hai(n, 2));
+	return (counter(2, n));
 }
 
 /**
- * _sqrt - return square root of number
- * @x: number
- * @i: number incrementer acting as divisor
- * Return: square root of `x`
+ * counter - helper function
+ * @count: int type 1st argument
+ * @n: int type second  argument
+ *
+ * Description: helper function for counter argument
+ * Return: 1 if prime, 0 other
  */
-
-int _sqrt(int x, int i)
+int counter(int count, int n)
 {
-	int square;
-
-	square = i * i;
-	if (square >= x)
-		return (i);
-	else
-		return (_sqrt(x, i + 1));
-}
-
-/**
- * hai - helper function, recursive steps taken
- * @n: number given to original function is_prime_number
- * @d: incrementer divisor
- * Return: 0 if not prime, 1 if prime
- */
-
-int hai(int n, int d)
-{
-	if (n % d == 0)
+	if (n % count == 0 || n < 2)
 		return (0);
-	else if (_sqrt(n, 1) < d)
+	else if (n / count == 1)
 		return (1);
 	else
-		return (hai(n, d + 1));
+		return (counter(count + 1, n));
 }
