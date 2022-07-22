@@ -1,16 +1,18 @@
+#include "main.h"
 #include <stdio.h>
-#define UNUSED(x) (void)(x)
 
 /**
- *main - function declation
- *@argv: arrays of argument
- *@argc: argument counter
- *Return: always 0
+ * main - print the num of args you passed to it
+ * @argc: argument count
+ * @argv: argument vector, array of strings
+ * Return: 0
  */
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-UNUSED(argv);
-printf("%d\n", argc -1);
-return (0);
+	(void) argv;
+
+	printf("%d\n", argc - 1);
+
+	return (0);
 }
