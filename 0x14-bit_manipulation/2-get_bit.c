@@ -1,13 +1,17 @@
+#include "main.h"
+#include <stddef.h>
+
 /**
- * get_bit - compute value of bit in `n' at `index'
- * @n: number to compute bit value of
- * @index: index to check
+ * set_bit - sets a bit at a position to 1
+ * @n: number to be used
+ * @index: index to be set
  *
- * Return: value of bit at `index' or -1 if index is out of range.
+ * Return: 1 on success, -1 on fail
  */
-int get_bit(unsigned long int n, unsigned int index)
+int set_bit(unsigned long int *n, unsigned int index)
 {
-	if (index > 63)
+	if (n == NULL || (index > (sizeof(unsigned long int) * 8) - 1))
 		return (-1);
-	return ((n >> index) & 1);
+	*n |= (1 << index);
+	return (1);
 }
