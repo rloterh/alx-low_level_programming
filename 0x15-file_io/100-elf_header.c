@@ -1,159 +1,303 @@
-#define _POSIX_C_SOURCE 200809L
+
 #include <elf.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /**
- * read_error - function that reads error
- * @argv: argument
- * Return: void
+ * _strncmp - compare two strings
+ * @s1: the first string
+ * @s2: the second string
+ * @n: the max number of bytes to compare
+ *
+ * Return: 0 if the first n bytes of s1 and s2 are equal, otherwise non-zero
  */
-
-void read_error(char *argv)
+int _strncmp(const char *s1, const char *s2, size_t n)
 {
-	dprintf(STDERR_FILENO, "Error: Can't read from file %s\n", argv);
+	for ( ; n && *s1 && *s2; --n, ++s1, ++s2)
+	{
+		if (*s1 != *s2)
+			return (*s1 - *s2);
+	}
+	if (n)
+	{
+		if (*s1)
+			return (1);
+		if (*s2)
+			return (-1);
+	}
+	return (0);
+}
+
+/**
+ * _close - close a file descriptor and print an error message upon failure
+ * @fd: the file descriptor to close
+ */
+void _close(int fd)
+{
+	if (close(fd) != -1)
+		return;
+	write(STDERR_FILENO, "Error: Can't close fd\n", 22);
 	exit(98);
 }
+
 /**
- * check_elf - function that checks the format of the file, prints magic num
- * @header: pointer to the ELF header struct
- * Return: void
+ * _read - read from a file and print an error message upon failure
+ * @fd: the file descriptor to read from
+ * @buf: the buffer to write to
+ * @count: the number of bytes to read
  */
-void check_elf(Elf64_Ehdr *header)
+void _read(int fd, char *buf, size_t count)
 {
-	int i = 0;
+	if (read(fd, buf, count) != -1)
+		return;
+	write(STDERR_FILENO, "Error: Can't read from file\n", 28);
+	_close(fd);
+	exit(98);
+}
 
-	if (header->e_ident[EI_MAG0] == 0x7f &&
-	    header->e_ident[EI_MAG1] == 'E' &&
-	    header->e_ident[EI_MAG2] == 'L' &&
-	    header->e_ident[EI_MAG3] == 'F')
-	{
-		printf("ELF Header:\n");
-		printf("  Magic:  ");
+/**
+ * elf_magic - print ELF magic
+ * @buffer: the ELF header
+ */
+void elf_magic(const unsigned char *buffer)
+{
+	unsigned int i;
 
-		for (i = 0; i < 16; i++)
-			printf(" %02x", header->e_ident[i]);
-		printf("\n");
-	}
-	else
+	if (_strncmp((const char *) buffer, ELFMAG, 4))
 	{
-		dprintf(STDERR_FILENO, "Format error, not an ELF\n");
+		write(STDERR_FILENO, "Error: Not an ELF file\n", 23);
 		exit(98);
 	}
+
+	printf("ELF Header:\n  Magic:   ");
+
+	for (i = 0; i < 16; ++i)
+		printf("%02x%c", buffer[i], i < 15 ? ' ' : '\n');
 }
 
 /**
- * check_class - function that checks the class of ELF format of the file
- * @header: pointer to the ELF header struct
- * Return: void
+ * elf_class - print ELF class
+ * @buffer: the ELF header
+ *
+ * Return: bit mode (32 or 64)
  */
-void check_class(Elf64_Ehdr *header)
+size_t elf_class(const unsigned char *buffer)
 {
-	if (header->e_ident[EI_CLASS] == ELFCLASS32)
-		printf("  Class:                             ELF32\n");
-	if (header->e_ident[EI_CLASS] == ELFCLASS64)
-		printf("  Class:                             ELF64\n");
+	printf("  %-34s ", "Class:");
+
+	if (buffer[EI_CLASS] == ELFCLASS64)
+	{
+		printf("ELF64\n");
+		return (64);
+	}
+	if (buffer[EI_CLASS] == ELFCLASS32)
+	{
+		printf("ELF32\n");
+		return (32);
+	}
+	printf("<unknown: %x>\n", buffer[EI_CLASS]);
+	return (32);
 }
 
 /**
- * check_data_ver - function that checks the data and version of ELF
- * @header: pointer to the ELF header struct
- * Return: void
+ * elf_data - print ELF data
+ * @buffer: the ELF header
+ *
+ * Return: 1 if big endian, otherwise 0
  */
-void check_data_ver(Elf64_Ehdr *header)
+int elf_data(const unsigned char *buffer)
 {
-	if (header->e_ident[EI_DATA] == ELFDATA2LSB)
-		puts("  Data:                              2's complement, little endian");
-	if (header->e_ident[EI_DATA] == ELFDATA2MSB)
-		printf("  Data:                              2's complement, big endian\n");
-	if (header->e_ident[EI_VERSION] != 1)
-		printf("  Version:                           1\n");
-	if (header->e_ident[EI_VERSION] == 1)
-		printf("  Version:                           1 (current)\n");
-	if (header->e_ident[EI_OSABI] == ELFOSABI_NONE)
-		printf("  OS/ABI:                            UNIX - System V\n");
-	else if (header->e_ident[EI_OSABI] == ELFOSABI_SYSV)
-		printf("  OS/ABI:                            UNIX - System V\n");
-	if (header->e_ident[EI_OSABI] == ELFOSABI_NETBSD)
-		printf("  OS/ABI:                            UNIX - NetBSD\n");
-	if (header->e_ident[EI_OSABI] == ELFOSABI_SOLARIS)
-		printf("  OS/ABI:                            UNIX - Solaris\n");
-	if (header->e_ident[EI_OSABI] == 0x53)
-		printf("  OS/ABI:                            <unknown: 53>\n");
-	if (header->e_ident[EI_ABIVERSION] == 0)
-		printf("  ABI Version:                       0\n");
-	if (header->e_ident[EI_ABIVERSION] == 1)
-		printf("  ABI Version:                       1\n");
+	printf("  %-34s ", "Data:");
+
+	if (buffer[EI_DATA] == ELFDATA2MSB)
+	{
+		printf("2's complement, big endian\n");
+		return (1);
+	}
+	if (buffer[EI_DATA] == ELFDATA2LSB)
+	{
+		printf("2's complement, little endian\n");
+		return (0);
+	}
+	printf("Invalid data encoding\n");
+	return (0);
 }
 
 /**
- * check_type - function that checks the type of ELF file
- * @header: pointer to the ELF header struct
- * Return: void
+ * elf_version - print ELF version
+ * @buffer: the ELF header
  */
-void check_type(Elf64_Ehdr *header)
+void elf_version(const unsigned char *buffer)
 {
-	if (header->e_type == ET_EXEC)
-		printf("  Type:                              EXEC (Executable file)\n");
-	if (header->e_type == ET_NONE)
-		printf("  Type:                              Unknown type\n");
-}
+	printf("  %-34s %u", "Version:", buffer[EI_VERSION]);
 
-/**
- * check_entry - function that checks the type of ELF file
- * @header: pointer to the ELF header struct
- * Return: void
- */
-void check_entry(Elf64_Ehdr *header)
-{
-	if (header->e_entry)
-		printf("  Entry point address:               0x%x\n", (int)header->e_entry);
+	if (buffer[EI_VERSION] == EV_CURRENT)
+		printf(" (current)\n");
 	else
-		printf("  Entry point address:               0\n");
+		printf("\n");
 }
 
 /**
- * main - program that prints ELF header formated
- * @argc: number of arguments passed to the program
- * @argv: string containing of the program and the ELF file
- * Return: 0 on success
+ * elf_osabi - print ELF OS/ABI
+ * @buffer: the ELF header
  */
-
-int main(int argc, char **argv)
+void elf_osabi(const unsigned char *buffer)
 {
-	int fd64, read_char = 1;
-	Elf64_Ehdr *header, size;
+	const char *os_table[19] = {
+		"UNIX - System V",
+		"UNIX - HP-UX",
+		"UNIX - NetBSD",
+		"UNIX - GNU",
+		"<unknown: 4>",
+		"<unknown: 5>",
+		"UNIX - Solaris",
+		"UNIX - AIX",
+		"UNIX - IRIX",
+		"UNIX - FreeBSD",
+		"UNIX - Tru64",
+		"Novell - Modesto",
+		"UNIX - OpenBSD",
+		"VMS - OpenVMS",
+		"HP - Non-Stop Kernel",
+		"AROS",
+		"FenixOS",
+		"Nuxi CloudABI",
+		"Stratus Technologies OpenVOS"
+	};
+
+	printf("  %-34s ", "OS/ABI:");
+
+	if (buffer[EI_OSABI] < 19)
+		printf("%s\n", os_table[(unsigned int) buffer[EI_OSABI]]);
+	else
+		printf("<unknown: %x>\n", buffer[EI_OSABI]);
+}
+
+/**
+ * elf_abivers - print ELF ABI version
+ * @buffer: the ELF header
+ */
+void elf_abivers(const unsigned char *buffer)
+{
+	printf("  %-34s %u\n", "ABI Version:", buffer[EI_ABIVERSION]);
+}
+
+/**
+ * elf_type - print ELF type
+ * @buffer: the ELF header
+ * @big_endian: endianness (big endian if non-zero)
+ */
+void elf_type(const unsigned char *buffer, int big_endian)
+{
+	char *type_table[5] = {
+		"NONE (No file type)",
+		"REL (Relocatable file)",
+		"EXEC (Executable file)",
+		"DYN (Shared object file)",
+		"CORE (Core file)"
+	};
+	unsigned int type;
+
+	printf("  %-34s ", "Type:");
+
+	if (big_endian)
+		type = 0x100 * buffer[16] + buffer[17];
+	else
+		type = 0x100 * buffer[17] + buffer[16];
+
+	if (type < 5)
+		printf("%s\n", type_table[type]);
+	else if (type >= ET_LOOS && type <= ET_HIOS)
+		printf("OS Specific: (%4x)\n", type);
+	else if (type >= ET_LOPROC && type <= ET_HIPROC)
+		printf("Processor Specific: (%4x)\n", type);
+	else
+		printf("<unknown: %x>\n", type);
+}
+
+/**
+ * elf_entry - print entry point address
+ * @buffer: string containing the entry point address
+ * @bit_mode: bit mode (32 or 64)
+ * @big_endian: endianness (big endian if non-zero)
+ */
+void elf_entry(const unsigned char *buffer, size_t bit_mode, int big_endian)
+{
+	int address_size = bit_mode / 8;
+
+	printf("  %-34s 0x", "Entry point address:");
+
+	if (big_endian)
+	{
+		while (address_size && !*(buffer))
+			--address_size, ++buffer;
+
+		printf("%x", *buffer & 0xff);
+
+		while (--address_size > 0)
+			printf("%02x", *(++buffer) & 0xff);
+	}
+	else
+	{
+		buffer += address_size;
+
+		while (address_size && !*(--buffer))
+			--address_size;
+
+		printf("%x", *buffer & 0xff);
+
+		while (--address_size > 0)
+			printf("%02x", *(--buffer) & 0xff);
+	}
+
+	printf("\n");
+}
+
+/**
+ * main - copy a file's contents to another file
+ * @argc: the argument count
+ * @argv: the argument values
+ *
+ * Return: Always 0
+ */
+int main(int argc, const char *argv[])
+{
+	unsigned char buffer[18];
+	unsigned int bit_mode;
+	int big_endian;
+	int fd;
 
 	if (argc != 2)
 	{
-		printf("Usage: elf_header elf_filename\n");
+		write(STDERR_FILENO, "Usage: elf_header elf_filename\n", 31);
 		exit(98);
 	}
 
-	header = malloc(sizeof(size));
-	if (!header)
+	fd = open(argv[1], O_RDONLY);
+	if (fd == -1)
+	{
+		write(STDERR_FILENO, "Error: Can't read from file\n", 28);
 		exit(98);
+	}
 
-	fd64 = open(argv[1], O_RDONLY);
-	if (fd64 < 0)
-		read_error(argv[1]);
+	_read(fd, (char *) buffer, 18);
 
-	read_char = read(fd64, header, sizeof(size));
-	if (read_char < 0)
-		read_error(argv[1]);
+	elf_magic(buffer);
+	bit_mode = elf_class(buffer);
+	big_endian = elf_data(buffer);
+	elf_version(buffer);
+	elf_osabi(buffer);
+	elf_abivers(buffer);
+	elf_type(buffer, big_endian);
 
-	check_elf(header);
-	check_class(header);
-	check_data_ver(header);
-	check_type(header);
-	check_entry(header);
+	lseek(fd, 24, SEEK_SET);
+	_read(fd, (char *) buffer, bit_mode / 8);
 
-	free(header);
-	close(fd64);
+	elf_entry(buffer, bit_mode, big_endian);
+
+	_close(fd);
 
 	return (0);
 }
