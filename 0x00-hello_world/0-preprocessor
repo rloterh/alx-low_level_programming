@@ -1,0 +1,3 @@
+#!/bin/bash
+# -E command runs script through preprocessor alone
+gcc -E $CFILE -o c
