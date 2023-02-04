@@ -1,19 +1,28 @@
 #include "main.h"
+
 /**
- * _strcpy - copy paste string
- * @dest: destination
- * @src: source
- * Return: dest
+ *_strcpy - update value.
+ *@dest: value to be evaluate.
+ *@src: value to be evaluate.
+ *Return: Always 0.
  */
+
 char *_strcpy(char *dest, char *src)
 {
-	int inc = 0;
+	int l = 0;
+	int x = 0;
 
-	while (*(src + inc) != '\0')
+	while (*(src + l) != '\0')
 	{
-		*(dest + inc) = *(src + inc);
-		inc++;
+		l++;
 	}
-	*(dest + inc) = '\0';
+
+	for (; x < l; x++)
+	{
+		dest[x] = src[x];
+	}
+
+	dest[l] = '\0';
+
 	return (dest);
 }
